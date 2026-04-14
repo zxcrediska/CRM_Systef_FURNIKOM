@@ -1,0 +1,77 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Создать заявку из email{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-envelope"></i> Создать заявку из email</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        {{ form.sender_email.label_tag }}
+                        {{ form.sender_email }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.sender_name.label_tag }}
+                        {{ form.sender_name }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.phone.label_tag }}
+                        {{ form.phone }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.subject.label_tag }}
+                        {{ form.subject }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.body.label_tag }}
+                        {{ form.body }}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Создать заявку
+                    </button>
+                    <a href="{% url 'crm:dashboard' %}" class="btn btn-secondary">Отмена</a>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Инструкция</h5>
+            </div>
+            <div class="card-body">
+                <p class="small">
+                    Эта форма позволяет быстро создать заявку на основе email, полученного от клиента.
+                </p>
+                <p class="small">
+                    <strong>Заполните:</strong>
+                </p>
+                <ul class="small">
+                    <li>Email отправителя</li>
+                    <li>Имя клиента</li>
+                    <li>Телефон (если есть)</li>
+                    <li>Тему письма</li>
+                    <li>Текст письма</li>
+                </ul>
+                <p class="small">
+                    Система автоматически создаст клиента, сделку и задачу для вас.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
