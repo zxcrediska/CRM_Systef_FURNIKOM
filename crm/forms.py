@@ -125,16 +125,17 @@ class DealProductForm(forms.ModelForm):
         model = DealProduct
         fields = ['product', 'quantity', 'price']
         widgets = {
-            'product': forms.Select(attrs={'class': 'form-select'}),
+            'product': forms.Select(attrs={'class': 'form-select', 'id': 'id_product'}),
             'quantity': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '0.01',
-                'min': '0.01'
+                'min': '0.01',
+                'value': '1',
             }),
             'price': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '0.01',
-                'min': '0'
+                'min': '0',
             }),
         }
         labels = {
@@ -145,6 +146,104 @@ class DealProductForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Автоматически подставляем цену товара при выборе
-        if self.instance and self.instance.product:
-            self.fields['price'].initial = self.instance.product.price
+        self.fields['product'].queryset = Product.objects.filter(in_stock=True)
+        self.fields['product'].empty_label = '--- Выберите товар ---'
+
+        # Делаем цену необязательной при заполнении формы —
+        # она подставится автоматически, если не указана
+        self.fields['price'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        product = cleaned_data.get('product')
+        price = cleaned_data.get('price')
+
+        # Если цена не указана, берём из товара
+        if product and not price:
+            cleaned_data['price'] = product.price
+
+        if not cleaned_data.get('price'):
+            raise forms.ValidationError('Укажите цену или выберите товар с ценой.')
+
+        return cleaned_data
+
+
+class DealAmountForm(forms.ModelForm):
+    """Форма для быстрого изменения суммы сделки"""
+
+    class Meta:
+        model = Deal
+        fields = ['amount']
+        widgets = {
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control form-control-lg',
+                'step': '0.01',
+                'min': '0',
+                'autofocus': True,
+            }),
+        }
+        labels = {
+            'amount': 'Сумма сделки (₽)',
+        }
+
+from .models import Client, Deal, Interaction, DealProduct, Product, Task
+
+
+class TaskCreateForm(forms.ModelForm):
+    """Форма для создания задачи"""
+
+    class Meta:
+        model = Task
+        fields = ['title', 'description', 'deal', 'priority', 'status', 'due_date']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'deal': forms.Select(attrs={'class': 'form-select'}),
+            'priority': forms.Select(attrs={'class': 'form-select'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'due_date': forms.DateTimeInput(attrs={
+                'class': 'form-control',
+                'type': 'datetime-local',
+            }),
+        }
+        labels = {
+            'title': 'Название задачи',
+            'description': 'Описание',
+            'deal': 'Сделка',
+            'priority': 'Приоритет',
+            'status': 'Статус',
+            'due_date': 'Срок выполнения',
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        self.fields['deal'].queryset = Deal.objects.exclude(
+            status__in=['completed', 'cancelled']
+        ).select_related('client').order_by('-created_at')
+        self.fields['deal'].empty_label = '--- Выберите сделку ---'
+
+
+class TaskEditForm(forms.ModelForm):
+    """Форма для редактирования задачи"""
+
+    class Meta:
+        model = Task
+        fields = ['title', 'description', 'priority', 'status', 'due_date']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'priority': forms.Select(attrs={'class': 'form-select'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'due_date': forms.DateTimeInput(attrs={
+                'class': 'form-control',
+                'type': 'datetime-local',
+            }),
+        }
+        labels = {
+            'title': 'Название задачи',
+            'description': 'Описание',
+            'priority': 'Приоритет',
+            'status': 'Статус',
+            'due_date': 'Срок выполнения',
+        }

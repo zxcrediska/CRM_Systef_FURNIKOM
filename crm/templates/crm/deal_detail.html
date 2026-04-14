@@ -236,21 +236,27 @@
         </div>
 
         <!-- Быстрые действия -->
-        <div class="card mt-3">
-            <div class="card-header">
-                <h5 class="mb-0">Быстрые действия</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{% url 'crm:deal_edit' deal.id %}" class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-pencil"></i> Изменить сумму
-                    </a>
-                    <a href="{% url 'crm:deal_add_product' deal.id %}" class="btn btn-outline-success btn-sm">
-                        <i class="bi bi-plus"></i> Добавить товар
-                    </a>
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Быстрые действия</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'crm:deal_change_amount' deal.id %}" class="btn btn-outline-primary btn-sm">
+                           <i class="bi bi-pencil-square"></i> Изменить сумму сделки
+                        </a>
+                        <a href="{% url 'crm:task_create' %}?deal={{ deal.id }}" class="btn btn-outline-warning btn-sm">
+                            <i class="bi bi-plus-square"></i> Создать задачу
+                        </a>
+                        <a href="{% url 'crm:deal_edit' deal.id %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-pencil"></i> Редактировать сделку
+                        </a>
+                        <a href="{% url 'crm:deal_add_product' deal.id %}" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-plus"></i> Добавить товар
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
     </div>
 </div>
 {% endblock %}

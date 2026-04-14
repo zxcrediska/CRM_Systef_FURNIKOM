@@ -1,73 +1,235 @@
 {% extends 'crm/base.html' %}
 
-{% block title %}Мои задачи{% endblock %}
+{% block title %}Задачи{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="bi bi-check2-square"></i> Мои задачи</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" id="showCompleted" 
-                   {% if show_completed %}checked{% endif %}
-                   onchange="window.location.href='?completed=' + this.checked">
-            <label class="form-check-label" for="showCompleted">
-                Показать выполненные
-            </label>
+    <h1 class="h2"><i class="bi bi-check2-square"></i> Задачи</h1>
+    <a href="{% url 'crm:task_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle"></i> Создать задачу
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Фильтры -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-auto">
+                <label class="col-form-label fw-bold">Фильтры:</label>
+            </div>
+            <div class="col-auto">
+                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Все статусы</option>
+                    {% for code, name in status_choices %}
+                    <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>
+                        {{ name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Все приоритеты</option>
+                    {% for code, name in priority_choices %}
+                    <option value="{{ code }}" {% if priority_filter == code %}selected{% endif %}>
+                        {{ name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="completed"
+                           value="true" id="showCompleted"
+                           {% if show_completed %}checked{% endif %}
+                           onchange="this.form.submit()">
+                    <label class="form-check-label" for="showCompleted">
+                        Показать завершённые
+                    </label>
+                </div>
+            </div>
+            {% if status_filter or priority_filter or show_completed %}
+            <div class="col-auto">
+                <a href="{% url 'crm:tasks_list' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-x"></i> Сбросить
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Список задач -->
+{% if tasks %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30%">Задача</th>
+                        <th style="width: 20%">Сделка / Клиент</th>
+                        <th style="width: 12%">Статус</th>
+                        <th style="width: 12%">Приоритет</th>
+                        <th style="width: 14%">Срок</th>
+                        <th style="width: 12%">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in tasks %}
+                    <tr class="{% if task.is_completed %}table-secondary{% elif task.due_date < now and not task.is_completed %}table-danger bg-opacity-25{% endif %}">
+                        <td>
+                            <a href="{% url 'crm:task_detail' task.id %}" class="text-decoration-none fw-bold">
+                                {% if task.status == 'completed' %}
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                {% elif task.status == 'cancelled' %}
+                                    <i class="bi bi-x-circle text-secondary"></i>
+                                {% elif task.status == 'in_progress' %}
+                                    <i class="bi bi-play-circle-fill text-info"></i>
+                                {% elif task.status == 'waiting' %}
+                                    <i class="bi bi-pause-circle-fill text-warning"></i>
+                                {% else %}
+                                    <i class="bi bi-circle text-primary"></i>
+                                {% endif %}
+                                {{ task.title }}
+                            </a>
+                            {% if task.description %}
+                            <div class="small text-muted text-truncate" style="max-width: 250px;">
+                                {{ task.description }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'crm:deal_detail' task.deal.id %}"
+                               class="text-decoration-none small d-block">
+                                <i class="bi bi-briefcase"></i> {{ task.deal.title }}
+                            </a>
+                            <small class="text-muted">
+                                <i class="bi bi-person"></i> {{ task.deal.client.name }}
+                            </small>
+                        </td>
+                        <td>
+                            <span class="badge
+                                {% if task.status == 'new' %}bg-primary
+                                {% elif task.status == 'in_progress' %}bg-info
+                                {% elif task.status == 'waiting' %}bg-warning text-dark
+                                {% elif task.status == 'completed' %}bg-success
+                                {% elif task.status == 'cancelled' %}bg-secondary
+                                {% endif %}">
+                                {{ task.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge
+                                {% if task.priority == 'urgent' %}bg-danger
+                                {% elif task.priority == 'high' %}bg-warning text-dark
+                                {% elif task.priority == 'medium' %}bg-info
+                                {% else %}bg-secondary
+                                {% endif %}">
+                                {{ task.get_priority_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if not task.is_completed and task.due_date < now %}
+                                <span class="text-danger fw-bold">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    {{ task.due_date|date:"d.m.Y H:i" }}
+                                </span>
+                                <div><span class="badge bg-danger">Просрочена!</span></div>
+                            {% else %}
+                                <span class="{% if task.is_completed %}text-muted{% endif %}">
+                                    {{ task.due_date|date:"d.m.Y H:i" }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <!-- Кнопки быстрого изменения статуса -->
+                            <div class="d-flex gap-1 flex-wrap">
+                                {% if task.status == 'new' %}
+                                    <a href="{% url 'crm:task_change_status' task.id 'in_progress' %}?next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-xs btn-info text-white"
+                                       style="font-size: 0.75rem; padding: 2px 6px;"
+                                       title="Взять в работу">
+                                        <i class="bi bi-play-fill"></i>
+                                    </a>
+                                {% endif %}
+
+                                {% if task.status == 'in_progress' %}
+                                    <a href="{% url 'crm:task_change_status' task.id 'waiting' %}?next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-warning"
+                                       style="font-size: 0.75rem; padding: 2px 6px;"
+                                       title="На ожидание">
+                                        <i class="bi bi-pause-fill"></i>
+                                    </a>
+                                {% endif %}
+
+                                {% if task.status == 'waiting' %}
+                                    <a href="{% url 'crm:task_change_status' task.id 'in_progress' %}?next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-info text-white"
+                                       style="font-size: 0.75rem; padding: 2px 6px;"
+                                       title="Возобновить">
+                                        <i class="bi bi-play-fill"></i>
+                                    </a>
+                                {% endif %}
+
+                                {% if task.status != 'completed' and task.status != 'cancelled' %}
+                                    <a href="{% url 'crm:task_change_status' task.id 'completed' %}?next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-success"
+                                       style="font-size: 0.75rem; padding: 2px 6px;"
+                                       title="Выполнена"
+                                       onclick="return confirm('Отметить задачу выполненной?')">
+                                        <i class="bi bi-check-lg"></i>
+                                    </a>
+                                    <a href="{% url 'crm:task_change_status' task.id 'cancelled' %}?next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-outline-secondary"
+                                       style="font-size: 0.75rem; padding: 2px 6px;"
+                                       title="Отменить"
+                                       onclick="return confirm('Отменить задачу?')">
+                                        <i class="bi bi-x-lg"></i>
+                                    </a>
+                                {% endif %}
+
+                                <a href="{% url 'crm:task_edit' task.id %}"
+                                   class="btn btn-outline-primary"
+                                   style="font-size: 0.75rem; padding: 2px 6px;"
+                                   title="Редактировать">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>Задача</th>
-                <th>Сделка</th>
-                <th>Срок</th>
-                <th>Приоритет</th>
-                <th>Статус</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for task in tasks %}
-            <tr {% if task.is_completed %}class="table-secondary"{% endif %}>
-                <td>
-                    {% if task.is_completed %}
-                    <i class="bi bi-check-circle-fill text-success"></i>
-                    {% else %}
-                    <i class="bi bi-circle"></i>
-                    {% endif %}
-                    {{ task.title }}
-                </td>
-                <td>
-                    <a href="{% url 'crm:deal_detail' task.deal.id %}">
-                        {{ task.deal.title }}
-                    </a>
-                </td>
-                <td>{{ task.due_date|date:"d.m.Y H:i" }}</td>
-                <td>
-                    {% if task.priority == 'urgent' %}
-                        <span class="badge bg-danger">{{ task.get_priority_display }}</span>
-                    {% elif task.priority == 'high' %}
-                        <span class="badge bg-warning">{{ task.get_priority_display }}</span>
-                    {% else %}
-                        <span class="badge bg-secondary">{{ task.get_priority_display }}</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if task.is_completed %}
-                        <span class="badge bg-success">Выполнена</span>
-                    {% else %}
-                        <span class="badge bg-warning">В работе</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" class="text-center text-muted">Нет задач</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Легенда кнопок -->
+<div class="mt-2 small text-muted">
+    <i class="bi bi-play-fill text-info"></i> — Взять в работу &nbsp;
+    <i class="bi bi-pause-fill text-warning"></i> — На ожидание &nbsp;
+    <i class="bi bi-check-lg text-success"></i> — Выполнена &nbsp;
+    <i class="bi bi-x-lg text-secondary"></i> — Отменить &nbsp;
+    <i class="bi bi-pencil text-primary"></i> — Редактировать
 </div>
+
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-check2-all fs-1 text-muted"></i>
+    <p class="text-muted mt-2">Задач не найдено</p>
+    <a href="{% url 'crm:task_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Создать первую задачу
+    </a>
+</div>
+{% endif %}
 {% endblock %}

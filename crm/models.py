@@ -85,6 +85,14 @@ class Task(models.Model):
         ('urgent', 'Срочно'),
     ]
 
+    STATUS_CHOICES = [
+        ('new', 'Новая'),
+        ('in_progress', 'В работе'),
+        ('waiting', 'Ожидание'),
+        ('completed', 'Выполнена'),
+        ('cancelled', 'Отменена'),
+    ]
+
     deal = models.ForeignKey(
         Deal,
         on_delete=models.CASCADE,
@@ -99,6 +107,7 @@ class Task(models.Model):
     title = models.CharField('Название задачи', max_length=200)
     description = models.TextField('Описание', blank=True)
     priority = models.CharField('Приоритет', max_length=10, choices=PRIORITY_CHOICES, default='medium')
+    status = models.CharField('Статус', max_length=20, choices=STATUS_CHOICES, default='new')
     due_date = models.DateTimeField('Срок выполнения')
     is_completed = models.BooleanField('Выполнена', default=False)
     completed_at = models.DateTimeField('Дата выполнения', null=True, blank=True)
@@ -111,6 +120,20 @@ class Task(models.Model):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        # Синхронизируем is_completed со статусом
+        if self.status == 'completed':
+            self.is_completed = True
+            if not self.completed_at:
+                from django.utils import timezone
+                self.completed_at = timezone.now()
+        elif self.status == 'cancelled':
+            self.is_completed = True
+        else:
+            self.is_completed = False
+            self.completed_at = None
+        super().save(*args, **kwargs)
 
 
 class Interaction(models.Model):

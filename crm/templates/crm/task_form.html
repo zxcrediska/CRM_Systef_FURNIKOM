@@ -1,0 +1,111 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-check2-square"></i> {{ title }}
+    </h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        {{ form.title.label_tag }}
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                            <div class="text-danger small">{{ form.title.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.description.label_tag }}
+                        {{ form.description }}
+                    </div>
+
+                    {% if form.deal %}
+                    <div class="mb-3">
+                        {{ form.deal.label_tag }}
+                        {{ form.deal }}
+                        {% if form.deal.errors %}
+                            <div class="text-danger small">{{ form.deal.errors }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.priority.label_tag }}
+                            {{ form.priority }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.status.label_tag }}
+                            {{ form.status }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.due_date.label_tag }}
+                            {{ form.due_date }}
+                            {% if form.due_date.errors %}
+                                <div class="text-danger small">{{ form.due_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Сохранить
+                        </button>
+                        {% if task %}
+                        <a href="{% url 'crm:task_detail' task.id %}" class="btn btn-secondary">
+                            <i class="bi bi-x"></i> Отмена
+                        </a>
+                        {% else %}
+                        <a href="{% url 'crm:tasks_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x"></i> Отмена
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Статусы задач</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled small">
+                    <li class="mb-1">
+                        <span class="badge bg-primary">Новая</span>
+                        — задача только создана
+                    </li>
+                    <li class="mb-1">
+                        <span class="badge bg-info">В работе</span>
+                        — задача выполняется
+                    </li>
+                    <li class="mb-1">
+                        <span class="badge bg-warning text-dark">Ожидание</span>
+                        — ждём ответа клиента
+                    </li>
+                    <li class="mb-1">
+                        <span class="badge bg-success">Выполнена</span>
+                        — задача закрыта
+                    </li>
+                    <li class="mb-1">
+                        <span class="badge bg-secondary">Отменена</span>
+                        — задача отменена
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

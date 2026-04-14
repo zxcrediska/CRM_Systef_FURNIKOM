@@ -13,29 +13,85 @@ from .models import Client, Deal, Task, Interaction, Product, DealProduct
 from .forms import ClientLeadForm, EmailLeadForm, DealEditForm, DealProductForm
 
 
+from .forms import (
+    ClientLeadForm, EmailLeadForm, DealEditForm,
+    DealProductForm, DealAmountForm, TaskCreateForm, TaskEditForm
+)
+
+
 @login_required
 def dashboard(request):
     """Главная панель с аналитикой"""
+    now = timezone.now()
+
     # Статистика по сделкам
     total_deals = Deal.objects.count()
     active_deals = Deal.objects.exclude(status__in=['completed', 'cancelled']).count()
     total_amount = Deal.objects.filter(status='paid').aggregate(Sum('amount'))['amount__sum'] or 0
 
-    # Статистика по статусам
-    deals_by_status = Deal.objects.values('status').annotate(count=Count('id'))
+    # Статистика по статусам сделок
+    status_dict = dict(Deal.STATUS_CHOICES)
+    deals_by_status_raw = Deal.objects.values('status').annotate(count=Count('id')).order_by('status')
+    deals_by_status = [
+        {
+            'status': item['status'],
+            'status_display': status_dict.get(item['status'], item['status']),
+            'count': item['count'],
+        }
+        for item in deals_by_status_raw
+    ]
 
-    # Задачи текущего пользователя
+    # Задачи текущего пользователя (активные)
     my_tasks = Task.objects.filter(
         manager=request.user,
         is_completed=False
     ).select_related('deal', 'deal__client').order_by('due_date')[:10]
 
+    # Статистика задач по статусам
+    task_status_dict = dict(Task.STATUS_CHOICES)
+    tasks_by_status_raw = Task.objects.filter(
+        manager=request.user
+    ).values('status').annotate(count=Count('id'))
+    tasks_by_status = [
+        {
+            'status': item['status'],
+            'status_display': task_status_dict.get(item['status'], item['status']),
+            'count': item['count'],
+        }
+        for item in tasks_by_status_raw
+    ]
+
     # Просроченные задачи
+    overdue_tasks_count = Task.objects.filter(
+        manager=request.user,
+        is_completed=False,
+        due_date__lt=now
+    ).count()
+
+    # Срочные задачи (приоритет urgent или high, не завершены)
+    urgent_tasks = Task.objects.filter(
+        manager=request.user,
+        is_completed=False,
+        priority__in=['urgent', 'high']
+    ).select_related('deal', 'deal__client').order_by(
+        '-priority', 'due_date'
+    )
+
+    # Просроченные задачи (список)
     overdue_tasks = Task.objects.filter(
         manager=request.user,
         is_completed=False,
-        due_date__lt=timezone.now()
-    ).count()
+        due_date__lt=now
+    ).select_related('deal', 'deal__client').order_by('due_date')
+
+    # Объединяем просроченные и срочные без дублей
+    attention_task_ids = set(
+        list(urgent_tasks.values_list('id', flat=True)) +
+        list(overdue_tasks.values_list('id', flat=True))
+    )
+    attention_tasks = Task.objects.filter(
+        id__in=attention_task_ids
+    ).select_related('deal', 'deal__client').order_by('due_date')
 
     # Последние взаимодействия
     recent_interactions = Interaction.objects.filter(
@@ -55,11 +111,206 @@ def dashboard(request):
         'total_amount': total_amount,
         'deals_by_status': deals_by_status,
         'my_tasks': my_tasks,
-        'overdue_tasks': overdue_tasks,
+        'tasks_by_status': tasks_by_status,
+        'overdue_tasks_count': overdue_tasks_count,
+        'attention_tasks': attention_tasks,
         'recent_interactions': recent_interactions,
         'deals_needing_attention': deals_needing_attention,
+        'now': now,
     }
     return render(request, 'crm/dashboard.html', context)
+
+
+@login_required
+def tasks_list(request):
+    """Список задач менеджера"""
+    show_completed = request.GET.get('completed', 'false') == 'true'
+    status_filter = request.GET.get('status', '')
+    priority_filter = request.GET.get('priority', '')
+
+    tasks = Task.objects.filter(manager=request.user)
+
+    if not show_completed:
+        tasks = tasks.filter(is_completed=False)
+
+    if status_filter:
+        tasks = tasks.filter(status=status_filter)
+
+    if priority_filter:
+        tasks = tasks.filter(priority=priority_filter)
+
+    tasks = tasks.select_related('deal', 'deal__client').order_by(
+        'is_completed', 'due_date'
+    )
+
+    context = {
+        'tasks': tasks,
+        'show_completed': show_completed,
+        'status_filter': status_filter,
+        'priority_filter': priority_filter,
+        'status_choices': Task.STATUS_CHOICES,
+        'priority_choices': Task.PRIORITY_CHOICES,
+    }
+    return render(request, 'crm/tasks_list.html', context)
+
+
+@login_required
+def task_create(request):
+    """Создание новой задачи"""
+    deal_pk = request.GET.get('deal')
+
+    if request.method == 'POST':
+        form = TaskCreateForm(request.POST, user=request.user)
+        if form.is_valid():
+            task = form.save(commit=False)
+            task.manager = request.user
+            task.save()
+            messages.success(request, f'Задача "{task.title}" создана!')
+
+            # Возвращаемся к сделке если создавали из неё
+            if task.deal:
+                return redirect('crm:deal_detail', pk=task.deal.id)
+            return redirect('crm:tasks_list')
+    else:
+        initial = {}
+        if deal_pk:
+            initial['deal'] = deal_pk
+        form = TaskCreateForm(user=request.user, initial=initial)
+
+    context = {
+        'form': form,
+        'title': 'Создать задачу',
+    }
+    return render(request, 'crm/task_form.html', context)
+
+
+@login_required
+def task_detail(request, pk):
+    """Детальная информация о задаче"""
+    task = get_object_or_404(
+        Task.objects.select_related('deal', 'deal__client', 'manager'),
+        pk=pk,
+        manager=request.user
+    )
+    context = {
+        'task': task,
+    }
+    return render(request, 'crm/task_detail.html', context)
+
+
+@login_required
+def task_edit(request, pk):
+    """Редактирование задачи"""
+    task = get_object_or_404(Task, pk=pk, manager=request.user)
+
+    if request.method == 'POST':
+        form = TaskEditForm(request.POST, instance=task)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Задача "{task.title}" обновлена!')
+            return redirect('crm:task_detail', pk=task.id)
+    else:
+        # Форматируем дату для datetime-local input
+        initial = {}
+        if task.due_date:
+            initial['due_date'] = task.due_date.strftime('%Y-%m-%dT%H:%M')
+        form = TaskEditForm(instance=task, initial=initial)
+
+    context = {
+        'form': form,
+        'task': task,
+        'title': 'Редактировать задачу',
+    }
+    return render(request, 'crm/task_form.html', context)
+
+
+@login_required
+def tasks_list(request):
+    """Список задач менеджера"""
+    show_completed = request.GET.get('completed', 'false') == 'true'
+    status_filter = request.GET.get('status', '')
+    priority_filter = request.GET.get('priority', '')
+
+    tasks = Task.objects.filter(manager=request.user)
+
+    if not show_completed:
+        tasks = tasks.exclude(status__in=['completed', 'cancelled'])
+
+    if status_filter:
+        tasks = tasks.filter(status=status_filter)
+
+    if priority_filter:
+        tasks = tasks.filter(priority=priority_filter)
+
+    tasks = tasks.select_related('deal', 'deal__client').order_by(
+        'is_completed', 'due_date'
+    )
+
+    context = {
+        'tasks': tasks,
+        'show_completed': show_completed,
+        'status_filter': status_filter,
+        'priority_filter': priority_filter,
+        'status_choices': Task.STATUS_CHOICES,
+        'priority_choices': Task.PRIORITY_CHOICES,
+        'now': timezone.now(),
+    }
+    return render(request, 'crm/tasks_list.html', context)
+
+@login_required
+def task_change_status(request, pk, new_status):
+    """Быстрая смена статуса задачи"""
+    task = get_object_or_404(Task, pk=pk, manager=request.user)
+
+    valid_statuses = [choice[0] for choice in Task.STATUS_CHOICES]
+    if new_status in valid_statuses:
+        old_status = task.get_status_display()
+        task.status = new_status
+        task.save()
+        messages.success(request, f'Статус задачи изменён: "{old_status}" → "{task.get_status_display()}"')
+    else:
+        messages.error(request, 'Недопустимый статус!')
+
+    # Возвращаемся туда откуда пришли
+    next_url = request.GET.get('next', '')
+    if next_url:
+        return redirect(next_url)
+    return redirect('crm:task_detail', pk=task.id)
+
+
+from .forms import ClientLeadForm, EmailLeadForm, DealEditForm, DealProductForm, DealAmountForm
+
+
+@login_required
+def deal_change_amount(request, pk):
+    """Быстрое изменение суммы сделки"""
+    deal = get_object_or_404(Deal, pk=pk)
+
+    if request.method == 'POST':
+        form = DealAmountForm(request.POST, instance=deal)
+        if form.is_valid():
+            old_amount = Deal.objects.get(pk=pk).amount
+            form.save()
+
+            # Создаем запись о взаимодействии
+            Interaction.objects.create(
+                client=deal.client,
+                deal=deal,
+                manager=request.user,
+                interaction_type='note',
+                description=f"Сумма сделки изменена: {old_amount} ₽ → {deal.amount} ₽"
+            )
+
+            messages.success(request, f'Сумма сделки изменена на {deal.amount} ₽')
+            return redirect('crm:deal_detail', pk=deal.id)
+    else:
+        form = DealAmountForm(instance=deal)
+
+    context = {
+        'form': form,
+        'deal': deal,
+    }
+    return render(request, 'crm/deal_change_amount.html', context)
 
 
 @login_required
@@ -144,11 +395,21 @@ def deal_add_product(request, pk):
     """Добавление товара в сделку"""
     deal = get_object_or_404(Deal, pk=pk)
 
+    # Проверяем, есть ли товары вообще
+    if not Product.objects.filter(in_stock=True).exists():
+        messages.warning(request, 'Нет доступных товаров. Сначала добавьте товары в справочник.')
+        return redirect('crm:deal_detail', pk=deal.id)
+
     if request.method == 'POST':
         form = DealProductForm(request.POST)
         if form.is_valid():
             deal_product = form.save(commit=False)
             deal_product.deal = deal
+
+            # Если цена не была указана, берём из товара
+            if not deal_product.price:
+                deal_product.price = deal_product.product.price
+
             deal_product.save()
 
             # Пересчитываем общую сумму сделки
@@ -160,6 +421,8 @@ def deal_add_product(request, pk):
 
             messages.success(request, f'Товар "{deal_product.product.name}" добавлен в сделку!')
             return redirect('crm:deal_detail', pk=deal.id)
+        else:
+            messages.error(request, 'Исправьте ошибки в форме.')
     else:
         form = DealProductForm()
 

@@ -1,0 +1,73 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Изменить сумму сделки{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+  <h1 class="h2"><i class="bi bi-pencil-square"></i> Изменить сумму сделки</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{{ deal.title }}</h5>
+                <small class="text-muted">Клиент: {{ deal.client.name }}</small>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Текущая сумма:</label>
+                        <p class="h4 text-muted">{{ deal.amount|floatformat:2 }} ₽</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        {{ form.amount.label_tag }}
+                        {{ form.amount }}
+                        {% if form.amount.errors %}
+                            <div class="text-danger">{{ form.amount.errors }}</div>
+                        {% endif %}
+                        <small class="text-muted">
+                            Введите новую сумму. Если в сделке есть товары, 
+                            сумма может быть пересчитана при добавлении/удалении товаров.
+                        </small>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Сохранить сумму
+                        </button>
+                        <a href="{% url 'crm:deal_detail' deal.id %}" class="btn btn-secondary">
+                            <i class="bi bi-x"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Информация</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Сделка:</strong> {{ deal.title }}</p>
+                <p><strong>Клиент:</strong> {{ deal.client.name }}</p>
+                <p><strong>Статус:</strong> {{ deal.get_status_display }}</p>
+                
+                {% if deal.products.exists %}
+                <hr>
+                <p class="small text-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    В сделке есть товары. При добавлении или удалении товаров 
+                    сумма будет пересчитана автоматически на основе товаров.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

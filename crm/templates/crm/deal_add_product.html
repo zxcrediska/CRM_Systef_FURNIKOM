@@ -7,6 +7,15 @@
     <h1 class="h2"><i class="bi bi-plus-circle"></i> Добавить товар в сделку</h1>
 </div>
 
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
 <div class="row">
     <div class="col-md-8">
         <div class="card">
@@ -17,27 +26,50 @@
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
-                    
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
                     <div class="mb-3">
-                        {{ form.product.label_tag }}
+                        <label for="id_product" class="form-label">Товар</label>
                         {{ form.product }}
                         {% if form.product.errors %}
                             <div class="text-danger">{{ form.product.errors }}</div>
                         {% endif %}
                     </div>
-                    
+
+                    <!-- Информация о выбранном товаре -->
+                    <div id="product-info" class="alert alert-info d-none mb-3">
+                        <small>
+                            <strong>Категория:</strong> <span id="product-category"></span><br>
+                            <strong>Цена по прайсу:</strong> <span id="product-price"></span> ₽<br>
+                            <strong>Ед. измерения:</strong> <span id="product-unit"></span>
+                        </small>
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            {{ form.quantity.label_tag }}
+                            <label for="id_quantity" class="form-label">Количество</label>
                             {{ form.quantity }}
+                            {% if form.quantity.errors %}
+                                <div class="text-danger">{{ form.quantity.errors }}</div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
-                            {{ form.price.label_tag }}
+                            <label for="id_price" class="form-label">Цена за единицу (₽)</label>
                             {{ form.price }}
-                            <small class="text-muted">Цена подставляется автоматически</small>
+                            {% if form.price.errors %}
+                                <div class="text-danger">{{ form.price.errors }}</div>
+                            {% endif %}
+                            <small class="text-muted">Оставьте пустым — подставится цена из прайса</small>
                         </div>
                     </div>
-                    
+
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-plus"></i> Добавить товар
@@ -50,7 +82,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
@@ -58,28 +90,70 @@
             </div>
             <div class="card-body">
                 <p class="small">
-                    После добавления товара общая сумма сделки будет пересчитана автоматически.
+                    Выберите товар из справочника, укажите количество.
+                    Цена подставится автоматически из прайса, но вы можете её изменить.
                 </p>
                 <p class="small">
-                    <strong>Текущая сумма:</strong> {{ deal.amount|floatformat:2 }} ₽
+                    <strong>Текущая сумма сделки:</strong> {{ deal.amount|floatformat:2 }} ₽
+                </p>
+                <hr>
+                <p class="small text-muted">
+                    После добавления товара общая сумма сделки будет пересчитана автоматически.
                 </p>
             </div>
         </div>
+
+        <!-- Уже добавленные товары -->
+        {% if deal.products.exists %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Товары в сделке</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for item in deal.products.all %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <small>{{ item.product.name }} × {{ item.quantity }}</small>
+                        <small class="text-muted">{{ item.total|floatformat:2 }} ₽</small>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-// Автоматическая подстановка цены при выборе товара
-document.addEventListener('DOMContentLoaded', function() {
-    const productSelect = document.querySelector('select[name="product"]');
-    const priceInput = document.querySelector('input[name="price"]');
-    
-    if (productSelect && priceInput) {
-        productSelect.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            // Здесь можно добавить AJAX-запрос для получения цены товара
-            // Пока просто оставляем возможность ручного ввода
-        });
+// Автоподстановка цены при выборе товара
+const productPrices = {
+    {% for product in form.product.field.queryset %}
+    '{{ product.id }}': {
+        'price': '{{ product.price }}',
+        'category': '{{ product.get_category_display }}',
+        'unit': '{{ product.unit }}'
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+};
+
+document.getElementById('id_product').addEventListener('change', function() {
+    const productId = this.value;
+    const priceField = document.getElementById('id_price');
+    const infoBlock = document.getElementById('product-info');
+
+    if (productId && productPrices[productId]) {
+        const info = productPrices[productId];
+        priceField.value = info.price;
+
+        document.getElementById('product-category').textContent = info.category;
+        document.getElementById('product-price').textContent = info.price;
+        document.getElementById('product-unit').textContent = info.unit;
+        infoBlock.classList.remove('d-none');
+    } else {
+        priceField.value = '';
+        infoBlock.classList.add('d-none');
     }
 });
 </script>
