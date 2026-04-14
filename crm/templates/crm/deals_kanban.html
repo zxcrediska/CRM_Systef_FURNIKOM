@@ -1,0 +1,53 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Канбан-доска сделок{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-kanban"></i> Канбан-доска сделок</h1>
+</div>
+
+<div class="row">
+    {% for status_name, data in deals_by_status.items %}
+    <div class="col-md-2">
+        <div class="card">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <strong>{{ status_name }}</strong>
+                <span class="badge bg-light text-dark">{{ data.count }}</span>
+            </div>
+            <div class="card-body p-2" style="min-height: 500px; max-height: 70vh; overflow-y: auto;">
+                {% for deal in data.deals %}
+                <div class="card mb-2 border-start border-3 
+                    {% if deal.status == 'new' %}border-primary
+                    {% elif deal.status == 'waiting_payment' %}border-warning
+                    {% elif deal.status == 'paid' %}border-success
+                    {% elif deal.status == 'cancelled' %}border-danger
+                    {% else %}border-secondary{% endif %}">
+                    <div class="card-body p-2">
+                        <h6 class="mb-1">
+                            <a href="{% url 'crm:deal_detail' deal.id %}" class="text-decoration-none">
+                                {{ deal.title }}
+                            </a>
+                        </h6>
+                        <p class="small mb-1 text-muted">
+                            <i class="bi bi-building"></i> {{ deal.client.name }}
+                        </p>
+                        <p class="small mb-1">
+                            <strong class="text-success">{{ deal.amount|floatformat:0 }} ₽</strong>
+                        </p>
+                        {% if deal.manager %}
+                        <p class="small mb-0 text-muted">
+                            <i class="bi bi-person"></i> {{ deal.manager.get_full_name|default:deal.manager.username }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center small mt-3">Нет сделок</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
