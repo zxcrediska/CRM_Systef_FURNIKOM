@@ -10,13 +10,30 @@ from datetime import timedelta
 import json
 
 from .models import Client, Deal, Task, Interaction, Product, DealProduct
-from .forms import ClientLeadForm, EmailLeadForm, DealEditForm, DealProductForm
+from .forms import ClientCreateForm
 
 
 from .forms import (
     ClientLeadForm, EmailLeadForm, DealEditForm,
     DealProductForm, DealAmountForm, TaskCreateForm, TaskEditForm
 )
+
+
+@login_required
+def client_create(request):
+    """Представление для создания нового клиента"""
+    if request.method == 'POST':
+        form = ClientCreateForm(request.POST)
+        if form.is_valid():
+            client = form.save()
+            messages.success(request, f'Клиент "{client.name}" успешно создан!')
+            return redirect('crm:clients_list')
+        else:
+            messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
+    else:
+        form = ClientCreateForm()
+
+    return render(request, 'crm/client_form.html', {'form': form})
 
 
 @login_required

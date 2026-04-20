@@ -99,15 +99,15 @@ class InteractionAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['article', 'name', 'category', 'price', 'unit', 'in_stock']
-    list_filter = ['category', 'in_stock']
-    search_fields = ['name', 'article', 'description']
+    list_display = ('name', 'article', 'category', 'price', 'stock_quantity', 'unit', 'in_stock')
+    list_filter = ('category', 'in_stock')
+    search_fields = ('name', 'article', 'description')
 
     fieldsets = (
         ('Основная информация', {
             'fields': ('name', 'article', 'category', 'description')
         }),
-        ('Цена и наличие', {
-            'fields': ('price', 'unit', 'in_stock')
+        ('Цена и складские остатки', {
+            'fields': ('price', 'unit', 'stock_quantity')
         }),
     )

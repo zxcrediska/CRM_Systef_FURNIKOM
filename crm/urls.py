@@ -18,6 +18,7 @@ urlpatterns = [
     path('deals/<int:pk>/remove-product/<int:product_pk>/', views.deal_remove_product, name='deal_remove_product'),
     path('deals/<int:pk>/status/<str:new_status>/', views.deal_change_status, name='deal_change_status'),
     path('clients/', views.clients_list, name='clients_list'),
+    path('clients/create/', views.client_create, name='client_create'),
     path('clients/<int:pk>/', views.client_detail, name='client_detail'),
 
     # Задачи

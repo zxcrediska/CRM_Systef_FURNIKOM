@@ -1,5 +1,35 @@
 from django import forms
-from .models import Client, Deal, Interaction, DealProduct, Product
+from .models import Client, Deal, Interaction, DealProduct, Product, Task
+
+
+class ClientCreateForm(forms.ModelForm):
+    """Форма для создания нового клиента"""
+
+    class Meta:
+        model = Client
+
+        fields = ['name', 'contact_person', 'phone', 'email', 'address', 'inn', 'notes']
+
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ООО "Ромашка"'}),
+            'contact_person': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Иванов Иван Иванович'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+7 (999) 123-45-67'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'info@romashka.ru'}),
+            'address': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'г. Москва, ул. Ленина, д. 1'}),
+            'inn': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1234567890'}),
+            'notes': forms.Textarea(
+                attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Дополнительная информация о клиенте'}),
+        }
+
+        labels = {
+            'name': 'Название компании',
+            'contact_person': 'Контактное лицо',
+            'phone': 'Телефон',
+            'email': 'Email',
+            'address': 'Адрес',
+            'inn': 'ИНН',
+            'notes': 'Примечания',
+        }
 
 
 class ClientLeadForm(forms.Form):
@@ -146,7 +176,7 @@ class DealProductForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['product'].queryset = Product.objects.filter(in_stock=True)
+        self.fields['product'].queryset = Product.objects.all()
         self.fields['product'].empty_label = '--- Выберите товар ---'
 
         # Делаем цену необязательной при заполнении формы —

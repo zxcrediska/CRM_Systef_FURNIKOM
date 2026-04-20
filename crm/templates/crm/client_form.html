@@ -1,0 +1,92 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Добавить нового клиента{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-person-plus-fill"></i> Добавить нового клиента</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.name.label_tag }}
+                            {{ form.name }}
+                            {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.contact_person.label_tag }}
+                            {{ form.contact_person }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.phone.label_tag }}
+                            {{ form.phone }}
+                            {% if form.phone.errors %}<div class="text-danger small mt-1">{{ form.phone.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.email.label_tag }}
+                            {{ form.email }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.address.label_tag }}
+                        {{ form.address }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.inn.label_tag }}
+                        {{ form.inn }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.notes.label_tag }}
+                        {{ form.notes }}
+                    </div>
+                    
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Сохранить клиента
+                        </button>
+                        <a href="{% url 'crm:clients_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Отмена
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Подсказка</h5>
+            </div>
+            <div class="card-body">
+                <p class="small">
+                    Заполните основные данные о клиенте. Поля, отмеченные жирным шрифтом, обязательны для заполнения.
+                </p>
+                <p class="small">
+                    После сохранения вы будете перенаправлены на страницу со списком всех клиентов.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

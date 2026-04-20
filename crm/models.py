@@ -197,7 +197,14 @@ class Product(models.Model):
     description = models.TextField('Описание', blank=True)
     price = models.DecimalField('Цена', max_digits=10, decimal_places=2)
     unit = models.CharField('Единица измерения', max_length=20, default='шт.')
-    in_stock = models.BooleanField('В наличии', default=True)
+    stock_quantity = models.DecimalField(
+        'Количество на складе',
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text='Укажите точное количество товара на складе.'
+    )
+    in_stock = models.BooleanField('В наличии (быстрый доступ)', default=True, editable=False)
     created_at = models.DateTimeField('Дата добавления', auto_now_add=True)
 
     class Meta:
