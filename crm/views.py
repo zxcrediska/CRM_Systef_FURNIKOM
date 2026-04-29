@@ -2,12 +2,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
-from django.contrib import messages
-from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from datetime import timedelta
 import json
+from django.contrib import messages
+from crm.models import Client, Deal, Interaction
+from django.contrib.auth.models import User
+from django.views.generic.edit import FormView
 
 from .models import Client, Deal, Task, Interaction, Product, DealProduct
 from .forms import ClientCreateForm
@@ -17,6 +19,7 @@ from .forms import (
     ClientLeadForm, EmailLeadForm, DealEditForm,
     DealProductForm, DealAmountForm, TaskCreateForm, TaskEditForm
 )
+
 
 
 @login_required
@@ -629,23 +632,68 @@ def public_lead_form(request):
     return render(request, 'crm/public_lead_form.html', {'form': form})
 
 
+import re
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .forms import EmailLeadForm
+from .models import Client, Deal, Interaction
+
+def normalize_phone(phone):
+    """Приводит телефон к единому формату +7XXXXXXXXXX"""
+    if not phone or phone == 'Не указан':
+        return ''
+    cleaned = re.sub(r'[^\d+]', '', phone.strip())
+    if cleaned.startswith('8') and len(cleaned) == 11:
+        return '+7' + cleaned[1:]
+    if cleaned.startswith('+7') and len(cleaned) == 12:
+        return cleaned
+    if cleaned.isdigit() and len(cleaned) == 10:
+        return '+7' + cleaned
+    return phone  # fallback
+
 @login_required
 def create_lead_from_email(request):
     """Создание заявки из email (для менеджеров)"""
     if request.method == 'POST':
         form = EmailLeadForm(request.POST)
         if form.is_valid():
-            # Ищем или создаем клиента по email
-            client, created = Client.objects.get_or_create(
-                email=form.cleaned_data['sender_email'],
-                defaults={
-                    'name': form.cleaned_data['sender_name'],
-                    'contact_person': form.cleaned_data['sender_name'],
-                    'phone': form.cleaned_data.get('phone', 'Не указан'),
-                }
-            )
+            sender_email = form.cleaned_data['sender_email']
+            sender_name = form.cleaned_data['sender_name']
+            raw_phone = form.cleaned_data.get('phone', '')
+            phone = normalize_phone(raw_phone) if raw_phone else ''
 
-            # Создаем сделку
+            # --- Поиск существующего клиента (по email или телефону) ---
+            client = None
+            if phone:
+                client = Client.objects.filter(phone=phone).first()
+            if not client and sender_email:
+                client = Client.objects.filter(email=sender_email).first()
+
+            if client:
+                # Обновляем данные клиента, если они изменились
+                updated = False
+                if client.name != sender_name:
+                    client.name = sender_name
+                    client.contact_person = sender_name
+                    updated = True
+                if phone and client.phone != phone:
+                    client.phone = phone
+                    updated = True
+                if updated:
+                    client.save()
+                    messages.info(request, f'Данные клиента обновлены: {client.name}')
+            else:
+                # Создаём нового клиента
+                client = Client.objects.create(
+                    name=sender_name,
+                    contact_person=sender_name,
+                    email=sender_email,
+                    phone=phone or '',
+                )
+                messages.success(request, f'Создан новый клиент: {client.name}')
+
+            # --- Создаём сделку ---
             deal = Deal.objects.create(
                 client=client,
                 manager=request.user,
@@ -655,16 +703,16 @@ def create_lead_from_email(request):
                 amount=0,
             )
 
-            # Создаем запись о взаимодействии
+            # --- Создаём запись о взаимодействии (задачу) ---
             Interaction.objects.create(
                 client=client,
                 deal=deal,
                 manager=request.user,
                 interaction_type='email',
-                description=form.cleaned_data['body']
+                description=f"Заявка из email: {form.cleaned_data['subject']}\n\n{form.cleaned_data['body']}"
             )
 
-            messages.success(request, f'Заявка от {client.name} успешно создана!')
+            messages.success(request, f'Заявка №{deal.id} от {client.name} успешно создана!')
             return redirect('crm:deal_detail', pk=deal.id)
     else:
         form = EmailLeadForm()

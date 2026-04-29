@@ -2,6 +2,7 @@ from django import forms
 from .models import Client, Deal, Interaction, DealProduct, Product, Task
 
 
+
 class ClientCreateForm(forms.ModelForm):
     """Форма для создания нового клиента"""
 

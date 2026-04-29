@@ -104,7 +104,7 @@ USE_I18N = True
 
 USE_TZ = True
 
-
+DJANGO_ALLOW_ASYNC_UNSAFE = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
@@ -123,3 +123,5 @@ LOGIN_URL = '/accounts/login/'
 
 # CSRF settings
 CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000', 'http://localhost:8000']
+
+TELEGRAM_BOT_TOKEN = '8784617725:AAEn4in7n_9G8Gnar3_9LFOAa4vrLbX4CDE'

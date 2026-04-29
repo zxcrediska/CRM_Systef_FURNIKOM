@@ -1,10 +1,6 @@
 from django.urls import path
 from . import views
-
-app_name = 'crm'
-
-from django.urls import path
-from . import views
+from django.contrib.auth import views as auth_views
 
 app_name = 'crm'
 
@@ -19,7 +15,9 @@ urlpatterns = [
     path('deals/<int:pk>/status/<str:new_status>/', views.deal_change_status, name='deal_change_status'),
     path('clients/', views.clients_list, name='clients_list'),
     path('clients/create/', views.client_create, name='client_create'),
+path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('clients/<int:pk>/', views.client_detail, name='client_detail'),
+
 
     # Задачи
     path('tasks/', views.tasks_list, name='tasks_list'),

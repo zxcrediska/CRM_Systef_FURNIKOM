@@ -216,6 +216,8 @@ class Product(models.Model):
         return f"{self.article} - {self.name}"
 
 
+
+
 class DealProduct(models.Model):
     """Связь между сделкой и товарами"""
     deal = models.ForeignKey(Deal, on_delete=models.CASCADE, related_name='products')
